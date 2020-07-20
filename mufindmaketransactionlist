@@ -1,0 +1,3 @@
+#!/bin/bash
+
+mu find --fields "d, l" subject:#Acc* | grep "$( date -d yesterday +"%d %b" )" | sed 's/\(^.*MDT, \)\(\/home.*,\)/[[file:\2][\1]]/' > ~/Documents/ledger-mu-extract-transaction/linklist.org

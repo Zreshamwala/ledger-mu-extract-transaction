@@ -1,6 +1,10 @@
 #+STARTUP: indent
 #+TODO: TODO IN-PROGRESS | DONE DEFERRED
 
+*This is currently a rudimentary work-in-progress---and these notes will evolve and become more polished as this project evolves.*
+
+* Alternate Path
+One script that contains all of these functions---to be executed the same day as the transactions in the email
 * Goal
 To write a series of scripts that reads an email in mu4e and appends transaction data to a ledger file.
 
@@ -20,16 +24,15 @@ If I can understand the mechanisms behind ledger's autocomplete, I can even look
  F: $FROM
  T: $TO
 
-** Pulling the Email File Script [2020-07-19 Sun]
+** ``mufindmaketransactionlist"
 The point of this script is to get a list of email files that can be extracted.
 The =grep= function only pulls the links for the present date.
 The =sed= function picks out just the file paths and converts them to org links: this is buggy because the gmail folders have square brackets too.
 
-
 #+BEGIN_SRC sh 
 #!/bin/bash
 
-mu find --fields "d, l" subject:#Acc* | grep "$( date -d yesterday +"%d %b" )" | sed 's/\(^.*MDT, \)\(\/home.*,\)/[[file:\2][A Transaction]]/' > ~/Dropbox/ZM-Shared\ Folder/frontdesk/ledgertests/linklist.org
+mu find --fields "d, l" subject:#Acc* | grep "$( date -d yesterday +"%d %b" )" | sed 's/\(^.*MDT, \)\(\/home.*,\)/[[file:\2][\1]]/' > ~/Documents/ledger-mu-extract-transaction/linklist.org
 
 #+END_SRC
 ** Elisp function to save org-links as file as then run a shell command triggering the ledger script (add to emacs config)
@@ -38,33 +41,34 @@ mu find --fields "d, l" subject:#Acc* | grep "$( date -d yesterday +"%d %b" )" |
 
 (defun writeinemail ()
 (interactive)
-(write-file(kbd "~/Documents/ledgerautomateemail/testemail")))
-
+(write-file(kbd "~/Documents/ledger-mu-extract-transaction/emaildata"))
+(shell-command "ledgeremailextractionscript")
+)
 
 #+END_SRC
 
 #+RESULTS:
 : writeinemail
 
-** script to input into org-mode template (maybe a series of cats)
-** Email Extraction Script Draft [2020-07-19 Sun]
-The script below succesfully takes the input from a testemail file and outputs to a test ledger file in the correct format.
+** ``ledgeremailextractionscript" Email Extraction Script 
+The script below takes the input from a emaildata file and outputs to a transaction inbox file in the correct format.
 *Note: I would probably change =>= to =>>= in the code to append the transaction entry; however, I would probably have something like an accountsinbox.ledger file instead of inputing to the final ledger, so that I can run a check before copying over to the main one.*
+This file goes in /usr/local/bin or added to path.
 
-#+BEGIN_SRC sh 
+#+BEGIN_SRC sh  
 #!/bin/bash
 
 function extractvendor {
-    grep "Subject:" testemail | sed 's/\(Subject: #Accounts \)\(.*\)/\2/'
+    grep "^Subject:" emaildata | sed 's/\(Subject: #Accounts \)\(.*\)/\2/'
 }
 function extractamount {
-    grep "A:" testemail | sed 's/\(A: \)\(.*\)/\$\2/'
+    grep "^A:" emaildata | sed 's/\(A: \)\(.*\)/\$\2/'
 }
 function extractfrom {
-    grep "F:" testemail | sed 's/\(F: \)\(.*\)/\2/'
+    grep "^F:" emaildata | sed 's/\(F: \)\(.*\)/\2/'
 }
 function extractto {
-    grep "T:" testemail | sed 's/\(T: \)\(.*\)/\2/'
+    grep "^T:" emaildata | sed 's/\(T: \)\(.*\)/\2/'
 }
 vendorname=$(extractvendor)
 transamount=$(extractamount)
@@ -73,7 +77,9 @@ accountto=$(extractto)
 
 echo "$(date +%Y/%m/%d) $vendorname
 $accountfrom      $transamount
-$accountto" >> testledger.ledger
+$accountto" >> transactioninbox.ledger
+
+
 
 #+END_SRC
 
