@@ -1,0 +1,82 @@
+#+STARTUP: indent
+#+TODO: TODO IN-PROGRESS | DONE DEFERRED
+
+* Goal
+To write a series of scripts that reads an email in mu4e and appends transaction data to a ledger file.
+
+At first, we can manually input the email, but later, perhaps set up an email filter that automatically runs the script on emails.
+
+* Method 
+The email is read via a sed stream, in which data is assigned to variables that are then fed into a template.
+
+If so, because the raw email file being read is complex, the sed/grep stream should be guided by initial characters that tell it how to read the email's content.
+
+If I can understand the mechanisms behind ledger's autocomplete, I can even look up accounts from the match, but it might be worth it to write my own code.
+
+
+** The Template of the email should be
+ Subject: #Accounts $VENDOR
+ A: $AMOUNT
+ F: $FROM
+ T: $TO
+
+** Pulling the Email File Script [2020-07-19 Sun]
+The point of this script is to get a list of email files that can be extracted.
+The =grep= function only pulls the links for the present date.
+The =sed= function picks out just the file paths and converts them to org links: this is buggy because the gmail folders have square brackets too.
+
+
+#+BEGIN_SRC sh 
+#!/bin/bash
+
+mu find --fields "d, l" subject:#Acc* | grep "$( date -d yesterday +"%d %b" )" | sed 's/\(^.*MDT, \)\(\/home.*,\)/[[file:\2][A Transaction]]/' > ~/Dropbox/ZM-Shared\ Folder/frontdesk/ledgertests/linklist.org
+
+#+END_SRC
+** Elisp function to save org-links as file as then run a shell command triggering the ledger script (add to emacs config)
+
+#+BEGIN_SRC emacs-lisp  
+
+(defun writeinemail ()
+(interactive)
+(write-file(kbd "~/Documents/ledgerautomateemail/testemail")))
+
+
+#+END_SRC
+
+#+RESULTS:
+: writeinemail
+
+** script to input into org-mode template (maybe a series of cats)
+** Email Extraction Script Draft [2020-07-19 Sun]
+The script below succesfully takes the input from a testemail file and outputs to a test ledger file in the correct format.
+*Note: I would probably change =>= to =>>= in the code to append the transaction entry; however, I would probably have something like an accountsinbox.ledger file instead of inputing to the final ledger, so that I can run a check before copying over to the main one.*
+
+#+BEGIN_SRC sh 
+#!/bin/bash
+
+function extractvendor {
+    grep "Subject:" testemail | sed 's/\(Subject: #Accounts \)\(.*\)/\2/'
+}
+function extractamount {
+    grep "A:" testemail | sed 's/\(A: \)\(.*\)/\$\2/'
+}
+function extractfrom {
+    grep "F:" testemail | sed 's/\(F: \)\(.*\)/\2/'
+}
+function extractto {
+    grep "T:" testemail | sed 's/\(T: \)\(.*\)/\2/'
+}
+vendorname=$(extractvendor)
+transamount=$(extractamount)
+accountfrom=$(extractfrom)
+accountto=$(extractto)
+
+echo "$(date +%Y/%m/%d) $vendorname
+$accountfrom      $transamount
+$accountto" >> testledger.ledger
+
+#+END_SRC
+
+* Workflow
+- Email using SAFT template
+- Pull the email file paths into the links
